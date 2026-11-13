@@ -14,6 +14,9 @@ _NDK="$ANDROID_HOME/ndk/25.0.8775105"
 [ -f "$_NDK/source.properties" ] || _NDK="$ANDROID_NDK_HOME"
 [ -f "$_NDK/source.properties" ] || _NDK="$NDK"
 [ -f "$_NDK/source.properties" ] || _NDK="$ANDROID_HOME/ndk-bundle"
+if [ ! -f "$_NDK/source.properties" ] && [ -d "$ANDROID_HOME/ndk" ]; then
+  _NDK=$(ls -d $ANDROID_HOME/ndk/* 2>/dev/null | sort -V | tail -n 1)
+fi
 
 if [ ! -f "$_NDK/source.properties" ]; then
   echo "Error: NDK not found."
