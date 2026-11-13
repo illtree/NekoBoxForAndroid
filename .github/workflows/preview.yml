@@ -72,6 +72,21 @@ jobs:
           echo "ndk.dir=${NDK_PATH}" >> local.properties
           ./run init action gradle
           ./gradlew app:assemblePreviewRelease
+          
+          # Ensure all APKs are properly signed
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          KEYSTORE="$HOME/.android/debug.keystore"
+          if [ ! -f "$KEYSTORE" ]; then
+            mkdir -p "$HOME/.android"
+            keytool -genkey -v -keystore "$KEYSTORE" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          for apk in $(find app/build/outputs/apk -name '*unsigned*.apk'); do
+            echo "Signing $apk..."
+            signed_apk="${apk/-unsigned/}"
+            $BUILD_TOOLS/apksigner sign --ks "$KEYSTORE" --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out "$signed_apk" "$apk"
+            rm "$apk"
+          done
+
           APK=$(find app/build/outputs/apk -name '*.apk')
           APK_DIR=$(dirname $(echo "$APK" | head -n 1))
           echo "APK_DIR=$APK_DIR" >> $GITHUB_ENV
