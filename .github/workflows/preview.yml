@@ -97,14 +97,32 @@ jobs:
           ./run init action gradle
           ./gradlew app:assemblePreviewRelease
           
-          # Ensure all APKs are properly signed with the persistent keystore
+          # Ensure all APKs are strictly 4-byte/page aligned and signed with the persistent keystore
           BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
           KEYSTORE="app/fixed-release.jks"
-          for apk in $(find app/build/outputs/apk -name '*unsigned*.apk'); do
-            echo "Signing $apk..."
-            signed_apk="${apk/-unsigned/}"
-            $BUILD_TOOLS/apksigner sign --ks "$KEYSTORE" --ks-pass pass:nekobox123 --ks-key-alias nekobox --key-pass pass:nekobox123 --out "$signed_apk" "$apk"
-            rm "$apk"
+          for apk in $(find app/build/outputs/apk -name '*.apk'); do
+            echo "Processing alignment and signing for $apk..."
+            aligned_apk="${apk/.apk/-aligned.apk}"
+            $BUILD_TOOLS/zipalign -p -f 4 "$apk" "$aligned_apk"
+            
+            clean_apk="${apk/-unsigned/}"
+            $BUILD_TOOLS/apksigner sign --ks "$KEYSTORE" \
+              --ks-pass pass:nekobox123 \
+              --ks-key-alias nekobox \
+              --key-pass pass:nekobox123 \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              --v3-signing-enabled true \
+              --out "$clean_apk" "$aligned_apk"
+            
+            rm -f "$aligned_apk"
+            if [ "$clean_apk" != "$apk" ]; then
+              rm -f "$apk"
+            fi
+            
+            echo "Verifying $clean_apk:"
+            $BUILD_TOOLS/zipalign -c 4 "$clean_apk"
+            $BUILD_TOOLS/apksigner verify --verbose "$clean_apk"
           done
 
           APK=$(find app/build/outputs/apk -name '*.apk')
