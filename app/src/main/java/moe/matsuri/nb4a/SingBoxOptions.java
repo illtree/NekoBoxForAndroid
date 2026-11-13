@@ -1991,6 +1991,8 @@ public class SingBoxOptions {
 
         public String short_id;
 
+        public String spider_x;
+
     }
 
     public static class InboundACMEOptions extends SingBoxOption {

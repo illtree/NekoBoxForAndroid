@@ -77,23 +77,26 @@ fun parseHysteria2(url: String): HysteriaBean {
         }
         name = link.fragment
 
-        link.queryParameter("mport")?.also {
+        (link.queryParameter("mport") ?: link.queryParameter("ports"))?.also {
             serverPorts = it
         }
-        link.queryParameter("sni")?.also {
+        (link.queryParameter("sni") ?: link.queryParameter("peer"))?.also {
             sni = it
         }
-        link.queryParameter("insecure")?.also {
-            allowInsecure = it == "1" || it == "true"
+        (link.queryParameter("insecure") ?: link.queryParameter("allowInsecure"))?.also {
+            allowInsecure = it == "1" || it.equals("true", ignoreCase = true)
         }
-//        link.queryParameter("upmbps")?.also {
-//            uploadMbps = it.toIntOrNull() ?: uploadMbps
-//        }
-//        link.queryParameter("downmbps")?.also {
-//            downloadMbps = it.toIntOrNull() ?: downloadMbps
-//        }
-        link.queryParameter("obfs-password")?.also {
+        (link.queryParameter("obfs-password") ?: link.queryParameter("obfs_password"))?.also {
             obfuscation = it
+        } ?: run {
+            link.queryParameter("obfs")?.let {
+                if (it != "salamander" && it.isNotBlank()) {
+                    obfuscation = it
+                }
+            }
+        }
+        link.queryParameter("alpn")?.also {
+            alpn = it
         }
 //        link.queryParameter("pinSHA256")?.also {
 //            // TODO your box do not support it
@@ -316,11 +319,13 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
         2 -> SingBoxOptions.Outbound_Hysteria2Options().apply {
             type = "hysteria2"
             server = bean.serverAddress
-            val port = bean.serverPorts.toIntOrNull()
-            if (port != null) {
-                server_port = port
+            val portList = hopPortsToSingboxList(bean.serverPorts)
+            if (portList.size == 1 && !portList[0].contains(":")) {
+                server_port = portList[0].toIntOrNull() ?: 443
+            } else if (portList.isNotEmpty()) {
+                server_ports = portList
             } else {
-                server_ports = hopPortsToSingboxList(bean.serverPorts)
+                server_port = bean.serverPorts.toIntOrNull() ?: 443
             }
             hop_interval = "${bean.hopInterval}s"
             up_mbps = bean.uploadMbps
@@ -343,7 +348,11 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 if (bean.sni.isNotBlank()) {
                     server_name = bean.sni
                 }
-                alpn = listOf("h3")
+                if (bean.alpn.isNotBlank()) {
+                    alpn = bean.alpn.listByLineOrComma()
+                } else {
+                    alpn = listOf("h3")
+                }
                 if (bean.caText.isNotBlank()) {
                     certificate = bean.caText
                 }
@@ -358,9 +367,21 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
 
 fun hopPortsToSingboxList(s: String): List<String> {
     return s.split(",").mapNotNull {
-        val pRange = it.replace("-", ":")
-        if (pRange.split(":").size == 2) {
-            pRange
+        val trimmed = it.trim()
+        if (trimmed.isEmpty()) return@mapNotNull null
+        val pRange = trimmed.replace("-", ":")
+        val parts = pRange.split(":")
+        if (parts.size == 2) {
+            val start = parts[0].toIntOrNull()
+            val end = parts[1].toIntOrNull()
+            if (start != null && end != null && start in 1..65535 && end in 1..65535) {
+                pRange
+            } else null
+        } else if (parts.size == 1) {
+            val p = parts[0].toIntOrNull()
+            if (p != null && p in 1..65535) {
+                p.toString()
+            } else null
         } else {
             null
         }

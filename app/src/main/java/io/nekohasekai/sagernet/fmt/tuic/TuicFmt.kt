@@ -32,10 +32,10 @@ fun parseTuic(url: String): TuicBean {
             token = rawPass
         }
 
-        link.queryParameter("sni")?.let {
+        (link.queryParameter("sni") ?: link.queryParameter("peer"))?.let {
             sni = it
         }
-        link.queryParameter("congestion_control")?.let {
+        (link.queryParameter("congestion_control") ?: link.queryParameter("congestion_controller") ?: link.queryParameter("cc"))?.let {
             congestionController = it
         }
         link.queryParameter("udp_relay_mode")?.let {
@@ -44,11 +44,11 @@ fun parseTuic(url: String): TuicBean {
         link.queryParameter("alpn")?.let {
             alpn = it
         }
-        link.queryParameter("allow_insecure")?.let {
-            if (it == "1") allowInsecure = true
+        (link.queryParameter("allow_insecure") ?: link.queryParameter("insecure"))?.let {
+            if (it == "1" || it.equals("true", ignoreCase = true)) allowInsecure = true
         }
-        link.queryParameter("disable_sni")?.let {
-            if (it == "1") disableSNI = true
+        (link.queryParameter("disable_sni") ?: link.queryParameter("sni_disabled"))?.let {
+            if (it == "1" || it.equals("true", ignoreCase = true)) disableSNI = true
         }
     }
 }

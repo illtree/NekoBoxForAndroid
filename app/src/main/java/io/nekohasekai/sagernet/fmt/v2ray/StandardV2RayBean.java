@@ -40,6 +40,8 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     public String realityShortId;
 
+    public String realitySpiderX;
+
 
     // --------------------------------------- //
 
@@ -100,6 +102,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
         if (realityPubKey == null) realityPubKey = "";
         if (realityShortId == null) realityShortId = "";
+        if (realitySpiderX == null) realitySpiderX = "";
 
         if (enableECH == null) enableECH = false;
         if (JavaUtil.isNullOrBlank(echConfig)) echConfig = "";
@@ -112,7 +115,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(4);
+        output.writeInt(5);
         super.serialize(output);
         output.writeString(uuid);
         output.writeString(encryption);
@@ -165,6 +168,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
         output.writeBoolean(muxPadding);
         output.writeInt(muxType);
         output.writeInt(muxConcurrency);
+        output.writeString(realitySpiderX);
     }
 
     @Override
@@ -255,6 +259,10 @@ public abstract class StandardV2RayBean extends AbstractBean {
             muxPadding = input.readBoolean();
             muxType = input.readInt();
             muxConcurrency = input.readInt();
+        }
+
+        if (version >= 5) {
+            realitySpiderX = input.readString();
         }
     }
 

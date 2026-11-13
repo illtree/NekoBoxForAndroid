@@ -184,6 +184,9 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
             url.queryParameter("sid")?.let {
                 realityShortId = it
             }
+            (url.queryParameter("spx") ?: url.queryParameter("spider_x"))?.let {
+                realitySpiderX = it
+            }
         }
     }
 
@@ -498,6 +501,9 @@ fun StandardV2RayBean.toUriVMessVLESSTrojan(isTrojan: Boolean): String {
                     builder.setQueryParameter("security", "reality")
                     builder.addQueryParameter("pbk", realityPubKey)
                     builder.addQueryParameter("sid", realityShortId)
+                    if (!realitySpiderX.isNullOrBlank()) {
+                        builder.addQueryParameter("spx", realitySpiderX)
+                    }
                 }
             }
         }
@@ -603,6 +609,9 @@ fun buildSingBoxOutboundTLS(bean: StandardV2RayBean): OutboundTLSOptions? {
                 enabled = true
                 public_key = bean.realityPubKey
                 short_id = bean.realityShortId
+                if (!bean.realitySpiderX.isNullOrBlank()) {
+                    spider_x = bean.realitySpiderX
+                }
             }
             if (fp.isNullOrBlank()) fp = "chrome"
         }
