@@ -7,6 +7,9 @@ on:
       - main
       - master
 
+permissions:
+  contents: write
+
 jobs:
   libcore:
     name: Native Build (LibCore)
@@ -113,3 +116,9 @@ jobs:
         with:
           name: NekoBox-APKs
           path: ${{ env.APK_DIR }}/*.apk
+
+      - name: Publish to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.4.3-preview ${{ env.APK_DIR }}/*.apk --clobber --repo illtree/NekoBoxForAndroid
