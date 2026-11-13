@@ -83,7 +83,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .subText(SagerNet.appVersionNameForDisplay)
                                 .setOnClickAction {
                                     requireContext().launchCustomTab(
-                                        "https://github.com/MatsuriDayo/NekoBoxForAndroid/releases"
+                                        "https://github.com/illtree/NekoBoxForAndroid/releases"
                                     )
                                 }
                                 .build())
@@ -183,7 +183,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .text(R.string.github)
                                 .setOnClickAction {
                                     requireContext().launchCustomTab(
-                                        "https://github.com/MatsuriDayo/NekoBoxForAndroid"
+                                        "https://github.com/illtree/NekoBoxForAndroid"
 
                                     )
                                 }
@@ -211,6 +211,26 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
             }
         }
 
+        private fun isRemoteVersionNewer(remote: String, current: String): Boolean {
+            val cleanRemote = remote.removePrefix("v").substringBefore("-").trim()
+            val cleanCurrent = current.removePrefix("v").substringBefore("-").trim()
+            val rParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
+            val cParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
+            val maxLen = maxOf(rParts.size, cParts.size)
+            for (i in 0 until maxLen) {
+                val r = rParts.getOrElse(i) { 0 }
+                val c = cParts.getOrElse(i) { 0 }
+                if (r > c) return true
+                if (r < c) return false
+            }
+            if (remote.contains("-") && current.contains("-")) {
+                val rSuffix = remote.substringAfter("-").replace("-", "").toLongOrNull() ?: 0L
+                val cSuffix = current.substringAfter("-").replace("-", "").toLongOrNull() ?: 0L
+                return rSuffix > cSuffix
+            }
+            return false
+        }
+
         fun checkUpdate(checkPreview: Boolean) {
             runOnIoDispatcher {
                 try {
@@ -220,29 +240,16 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     }
                     val response = client.newRequest().apply {
                         if (checkPreview) {
-                            setURL("https://api.github.com/repos/MatsuriDayo/NekoBoxForAndroid/releases/tags/preview")
+                            setURL("https://api.github.com/repos/illtree/NekoBoxForAndroid/releases/tags/v1.4.3-preview")
                         } else {
-                            setURL("https://api.github.com/repos/MatsuriDayo/NekoBoxForAndroid/releases/latest")
+                            setURL("https://api.github.com/repos/illtree/NekoBoxForAndroid/releases/latest")
                         }
                     }.execute()
                     val release = JSONObject(Util.getStringBox(response.contentString))
-                    val releaseName = release.getString("name")
+                    val releaseName = release.optString("name").ifBlank { release.optString("tag_name") }
                     val releaseUrl = release.getString("html_url")
-                    var haveUpdate = releaseName.isNotBlank()
-                    haveUpdate = if (isPreview) {
-                        if (checkPreview) {
-                            haveUpdate && releaseName != BuildConfig.PRE_VERSION_NAME
-                        } else {
-                            // User: 1.3.9 pre-1.4.0 Stable: 1.3.9 -> No update
-                            haveUpdate && releaseName != BuildConfig.VERSION_NAME
-                        }
-                    } else {
-                        // User: 1.4.0 Preview: pre-1.4.0 -> No update
-                        // User: 1.4.0 Preview: pre-1.4.1 -> Update
-                        // User: 1.4.0 Stable: 1.4.0 -> No update
-                        // User: 1.4.0 Stable: 1.4.1 -> Update
-                        haveUpdate && !releaseName.contains(BuildConfig.VERSION_NAME)
-                    }
+                    val currentVersion = if (checkPreview && isPreview) BuildConfig.PRE_VERSION_NAME else BuildConfig.VERSION_NAME
+                    val haveUpdate = releaseName.isNotBlank() && isRemoteVersionNewer(releaseName, currentVersion)
                     runOnMainDispatcher {
                         if (haveUpdate) {
                             val context = requireContext()
