@@ -120,12 +120,20 @@ fun Project.setupAppCommon() {
     val pwd = lp.getProperty("ALIAS_PASS") ?: System.getenv("ALIAS_PASS")
 
     android.apply {
+        val fixedKeystore = rootProject.file("app/fixed-release.jks")
         val signKey = if (keystorePwd != null) {
             signingConfigs.create("release") {
                 storeFile = rootProject.file("release.keystore")
                 storePassword = keystorePwd
                 keyAlias = alias
                 keyPassword = pwd
+            }
+        } else if (fixedKeystore.exists()) {
+            signingConfigs.create("release") {
+                storeFile = fixedKeystore
+                storePassword = "nekobox123"
+                keyAlias = "nekobox"
+                keyPassword = "nekobox123"
             }
         } else {
             signingConfigs.getByName("debug")

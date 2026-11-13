@@ -63,6 +63,27 @@ jobs:
           name: libcore-aar
           path: app/libs
 
+      - name: Ensure Static Release Keystore
+        run: |
+          if [ ! -f app/fixed-release.jks ]; then
+            echo "Generating persistent signing keystore..."
+            keytool -genkeypair -v \
+              -keystore app/fixed-release.jks \
+              -storetype PKCS12 \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -alias nekobox \
+              -storepass nekobox123 \
+              -keypass nekobox123 \
+              -dname "CN=NekoBox,OU=Neko,O=Neko,L=Tokyo,C=JP"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add app/fixed-release.jks
+            git commit -m "chore: persist static signing keystore for future in-place updates" || true
+            git push origin main || true
+          fi
+
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
@@ -73,17 +94,13 @@ jobs:
           ./run init action gradle
           ./gradlew app:assemblePreviewRelease
           
-          # Ensure all APKs are properly signed
+          # Ensure all APKs are properly signed with the persistent keystore
           BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
-          KEYSTORE="$HOME/.android/debug.keystore"
-          if [ ! -f "$KEYSTORE" ]; then
-            mkdir -p "$HOME/.android"
-            keytool -genkey -v -keystore "$KEYSTORE" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          KEYSTORE="app/fixed-release.jks"
           for apk in $(find app/build/outputs/apk -name '*unsigned*.apk'); do
             echo "Signing $apk..."
             signed_apk="${apk/-unsigned/}"
-            $BUILD_TOOLS/apksigner sign --ks "$KEYSTORE" --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out "$signed_apk" "$apk"
+            $BUILD_TOOLS/apksigner sign --ks "$KEYSTORE" --ks-pass pass:nekobox123 --ks-key-alias nekobox --key-pass pass:nekobox123 --out "$signed_apk" "$apk"
             rm "$apk"
           done
 
